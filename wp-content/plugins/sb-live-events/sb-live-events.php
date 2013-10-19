@@ -17,6 +17,7 @@ if(!class_exists('Sb_Live_Events')) {
 			add_action('admin_menu', array(&$this, 'add_menu'));
 			parent::WP_Widget(false, $name = __('SB Live Events Widget', 'sb-live-events')); 
 			add_action('widgets_init',array(&$this, 'add_widget'));
+			add_action( 'wp_enqueue_scripts', array(&$this,'fetch_live_script'));
 		} 
 
 		// widget form creation
@@ -36,7 +37,7 @@ if(!class_exists('Sb_Live_Events')) {
 	     	return $instance;
 		}
 
-	// widget display
+		// widget display
 		public function widget($args, $instance) {
 			/* ... */
 			echo "<h3>".$instance['title']."</h3>";
@@ -79,6 +80,11 @@ if(!class_exists('Sb_Live_Events')) {
 
 		public function get_events($no_of_events = 3){
 			return get_option('setting_a') . " : " . get_option('setting_b');
+		}
+
+		public function fetch_live_script(){			
+			wp_enqueue_script( 'ajax-script', plugins_url( '/js/fetch_live_events.js', __FILE__ ), array('jquery'));
+			wp_localize_script( 'ajax-script', 'ajax_object',array( 'ajax_url' => 'https://sbfacade.bpsgameserver.com/PlayableMarketService/PlayableMarketServicesV2.svc/json2/FetchOngoingLiveEvents?segmentId=601&languageCode=en&timeZoneStandardName=GMT%20Standard%20Time', 'we_value' => 1234 ));
 		}
 
 
