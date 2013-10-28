@@ -1,13 +1,13 @@
 jQuery(document).ready(function($) {
 	// We can also pass the url value separately from ajaxurl for front end AJAX implementations
-    console.log(ajax_object.ajax_url);
+    console.log(sb_popular_ajax_object.sb_popular_ajax_url);
 	jQuery.ajax({
-		url: ajax_object.ajax_url,
+		url: sb_popular_ajax_object.sb_popular_ajax_url,
 		type: 'GET',
 		dataType: 'json',		
 		success: function(data){
-            $.each( data.FetchOngoingLiveEventsResult, function( key, value ) {
-                $("#sb-live-events").append("<li>" + value.n + "</li>");
+            $.each( data.FetchMostPopularMarketsResult, function( key, value ) {
+                $("#sb-popular-events").append("<li>" + value.dn + "</li>");
             });
         },
 		error: function (xhr, ajaxOptions, thrownError) {

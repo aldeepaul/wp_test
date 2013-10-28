@@ -3,108 +3,93 @@
 Plugin Name: SB Live Events
 Plugin URI: http://pi.kutimoy.com
 Description: This is a test plugin for displaying live events.
-Version: .01
+Version: 1.01
 Author: Aldee 
 Author URI: http://pi.kutimoy.com
 License: 
 */
 
-if(!class_exists('Sb_Live_Events')) { 
-	class Sb_Live_Events extends WP_Widget{ /** * Construct the plugin object */ 
 
-		public function __construct() { // register actions 
-			add_action('admin_init', array(&$this, 'admin_init')); 
-			add_action('admin_menu', array(&$this, 'add_menu'));
-			parent::WP_Widget(false, $name = __('SB Live Events Widget', 'sb-live-events')); 
-			add_action('widgets_init',array(&$this, 'add_widget'));
-			add_action( 'wp_enqueue_scripts', array(&$this,'fetch_live_script'));
-		} 
+/**
+ * Check for function, class and constant definition confilcts
+ * and only load the rest of the plugin if no conflicts are found
+ */
+$sb_live_events_widgets_functions_used = array();
+$sb_live_events_widgets_classes_used = array('Sb_Live_Events');
+$sb_live_events_widgets_constants_used = array();
 
-		// widget form creation
-		public function form($instance) {	
-			if( $instance) {
-		 	    $title = esc_attr($instance['title']);	    	
-			} else {
-			     $title = '';		     
-			}
-			include(sprintf("%s/templates/widget_form.php", dirname(__FILE__)));
+$sb_live_events_widgets_errors = array();
+
+// check for wp version >= 2.8
+global $wp_version;
+$sb_live_events_widgets_wp_min_version = '3.0';
+if ( version_compare( $wp_version, $sb_live_events_widgets_wp_min_version, '<' ) ) {
+    $sb_live_events_widgets_errors[] = __( 'Odds Widgets plugin only works on WordPress' ) . ' ' . $sb_live_events_widgets_wp_min_version . '+<br />' . __( 'You need to upgrade your blog to use this plugin!' );
+}
+
+// check for curl php extension
+$loaded_extensions = get_loaded_extensions();
+if ( !in_array( 'curl', $loaded_extensions ) ) {
+    $sb_live_events_widgets_errors[] = __( 'SB Live Widgets plugin requires CURL PHP extension to be installed' );
+}
+
+// check for function names conflicts
+foreach ( $sb_live_events_widgets_functions_used as $f_name ) {
+    if ( function_exists( $f_name ) ) {
+        $sb_live_events_widgets_errors[] = __( 'Function already defined: ' ) . $f_name;
+    }
+}
+
+// check for class names conflicts
+foreach ( $sb_live_events_widgets_classes_used as $cl_name ) {
+    if ( class_exists( $cl_name ) ) {
+        $sb_live_events_widgets_errors[] = __( 'Class already defined: ' ) . $cl_name;
+    }
+}
+
+// check for constant names conflicts
+foreach ( $sb_live_events_widgets_constants_used as $c_name ) {
+    if ( defined( $c_name ) ) {
+        $sb_live_events_widgets_errors[] = __( 'Constant already defined: ' ) . $c_name;
+    }
+}
+
+if ( !empty( $sb_live_events_widgets_errors ) ) {
+    add_action( 'admin_notices', 'sb_live_events_widgets_show_errors' );
+} else {
+    // Load the plugin
+    include_once( 'sb-live-events-loader.php' );
+}
+
+/**
+ * Show the odds widgets errors if any
+ */
+function sb_live_events_widgets_show_errors() {
+    global $sb_live_events_widgets_errors;
+
+    if ( !empty( $sb_live_events_widgets_errors ) ) {
+        print '<div class="error"><p><strong>'
+            .__('The &quot;Odds Widgets&quot; plugin cannot load correctly due to following errors:')
+            .'</strong></p><ul>'
+            .implode('</li><li>', $sb_live_events_widgets_errors)
+            .'</ul></div>';
+    }
+}
+
+
+/*
+if(class_exists('Sb_Live_Events')) { // Installation and uninstallation hooks
+	register_activation_hook(__FILE__, array('Sb_Live_Events', 'activate'));
+	register_deactivation_hook(__FILE__, array('Sb_Live_Events', 'deactivate')); // instantiate the plugin class
+	$Sb_Live_Events = new Sb_Live_Events();
+	if(isset($Sb_Live_Events)) { // Add the settings link to the plugins page
+		function plugin_settings_link($links) {
+			$settings_link = '<a href="options-general.php?page=sb-live-events">Settings</a>';
+			array_unshift($links, $settings_link);
+			return $links;
 		}
-
-		// widget update
-		public function update($new_instance, $old_instance) {
-			$instance = $old_instance;      
-	      	$instance['title'] = strip_tags($new_instance['title']);
-	     	return $instance;
-		}
-
-		// widget display
-		public function widget($args, $instance) {
-			/* ... */
-			echo "<h3>".$instance['title']."</h3>";
-		}
-
-		public function add_widget(){
-			register_widget("Sb_Live_Events");
-		}
-
-		/** * Activate the plugin */ 
-		public static function activate() {
-
-		} // END public static function activate 
-
-		/** * Deactivate the plugin */ 
-		public static function deactivate() {
-
-		} // END	public static function deactivate 
-
-		public function admin_init() { // Set up the settings for this plugin 
-			$this->init_settings(); // Possibly do additional admin_init tasks 
-		} 
-
-		public function init_settings() { // register the settings for this plugin 
-			register_setting('sb-live-events-group', 'setting_a'); 
-			register_setting('sb-live-events-group', 'setting_b'); 
-		}
-		/** * add a menu */ 
-		public function add_menu() { 
-			add_options_page('SB Live Events Settings', 'SB Live Events', 'manage_options', 'sb-live-events', array(&$this, 'plugin_settings_page')); 
-		} // END public function add_menu() 
-
-		/** * Menu Callback */ 
-		public function plugin_settings_page() { 			
-			if(!current_user_can('manage_options')) { 
-				wp_die(__('You do not have sufficient permissions to access this page.')); 
-			} // Render the settings template 
-			include(sprintf("%s/templates/settings.php", dirname(__FILE__))); 
-		} 
-
-		public function get_events($no_of_events = 3){
-			return get_option('setting_a') . " : " . get_option('setting_b');
-		}
-
-		public function fetch_live_script(){			
-			wp_enqueue_script( 'ajax-script', plugins_url( '/js/fetch_live_events.js', __FILE__ ), array('jquery'));
-			wp_localize_script( 'ajax-script', 'ajax_object',array( 'ajax_url' => 'https://sbfacade.bpsgameserver.com/PlayableMarketService/PlayableMarketServicesV2.svc/json2/FetchOngoingLiveEvents?segmentId=601&languageCode=en&timeZoneStandardName=GMT%20Standard%20Time', 'we_value' => 1234 ));
-		}
-
-
-
+		$plugin = plugin_basename(__FILE__);
+		add_filter("plugin_action_links_$plugin", 'plugin_settings_link');
 	}
 }
-
-
-if(class_exists('Sb_Live_Events')) { // Installation and uninstallation hooks 
-	register_activation_hook(__FILE__, array('Sb_Live_Events', 'activate')); 
-	register_deactivation_hook(__FILE__, array('Sb_Live_Events', 'deactivate')); // instantiate the plugin class 
-	$Sb_Live_Events = new Sb_Live_Events(); 
-	if(isset($Sb_Live_Events)) { // Add the settings link to the plugins page 
-		function plugin_settings_link($links) { 
-			$settings_link = '<a href="options-general.php?page=sb-live-events">Settings</a>'; 
-			array_unshift($links, $settings_link); 
-			return $links; 
-		} 
-		$plugin = plugin_basename(__FILE__); 
-		add_filter("plugin_action_links_$plugin", 'plugin_settings_link'); 
-	} 
-}
-
+*/
